@@ -1,3 +1,5 @@
+import org.eclipse.jgit.api.Git
+
 plugins {
   id 'com.android.application'
   id 'kotlin-android'
@@ -29,6 +31,34 @@ android {
   kotlinOptions {
     jvmTarget = '1.8'
   }
+}
+
+// Helper task to generate and init a local git repository which is referenced as a source dependency
+tasks.register("generateRepoFolder") { task ->
+
+  task.outputs.dir("$rootDir/repo-ui-tests")
+
+  task.doLast("run") { runtimeTask ->
+
+    def outDir = runtimeTask.outputs.files.singleFile
+    def project = runtimeTask.project
+
+    project.delete(new File(outDir, ".git"))
+
+    Git.init().setDirectory(outDir).call().withCloseable { git ->
+
+      new File(outDir, "should-be-included-in-assets.txt")
+        .write("Hello\nWorld!")
+
+      git.add().addFilepattern("should-be-included-in-assets.txt").call()
+      git.commit().setMessage("initial commit").call()
+    }
+  }
+}
+
+tasks.named("preBuild") {
+
+  it.dependsOn(tasks.named("generateRepoFolder"))
 }
 
 dependencies {
